@@ -30,7 +30,10 @@ ARCHIDROID_GCC_CFLAGS_ARM := -O3
 ARCHIDROID_GCC_CFLAGS_THUMB := -O3
 
 # Additional flags passed to all C targets compiled with GCC
-ARCHIDROID_GCC_CFLAGS := -O3 -fgcse-las -fgcse-sm -fipa-pta -fivopts -fomit-frame-pointer -frename-registers -fsection-anchors -ftracer -ftree-loop-im -ftree-loop-ivcanon -funsafe-loop-optimizations -funswitch-loops -fweb -Wno-error=array-bounds -Wno-error=clobbered -Wno-error=maybe-uninitialized -Wno-error=strict-overflow
+ARCHIDROID_GCC_CFLAGS := -O3 -pipe -fgcse-las -fgcse-sm -fipa-pta -fivopts -fomit-frame-pointer -frename-registers -fsection-anchors -ftree-loop-im -ftree-loop-ivcanon -ftree-vectorize -funsafe-loop-optimizations -funswitch-loops -fweb -Wno-error=array-bounds -Wno-error=clobbered -Wno-error=maybe-uninitialized -Wno-error=parentheses -Wno-error=strict-overflow -Wno-error=unused-variable
+
+# Flags passed to linker (ld) of all C and C++ targets
+ARCHIDROID_GCC_LDFLAGS := -Wl,-O3 -Wl,--relax -Wl,--sort-common
 
 ############################
 ### EXPERIMENTAL SECTION ###
@@ -39,11 +42,16 @@ ARCHIDROID_GCC_CFLAGS := -O3 -fgcse-las -fgcse-sm -fipa-pta -fivopts -fomit-fram
 # Flags in this section are highly experimental
 # Current setup is based on proposed androideabi toolchain
 # Results with other toolchains may vary
+# Be careful when changing options in this section
 
-# These flags work fine in suggested compiler, but may cause ICEs in other compilers, comment if needed
-ARCHIDROID_GCC_CFLAGS += -fgraphite -fgraphite-identity
+# These flags should work in general, but it's likely that the generated code might be in fact slower than without them
+# I suggest to not enable them globally, but they're here for you in case you want to benchmark the OS with and without them
+# ARCHIDROID_GCC_CFLAGS += -ftracer -funroll-loops
 
-# The following flags (-floop) require that your GCC has been configured with --with-isl
+# These flags may cause ICEs in some compilers, but work fine in other ones, test carefully
+# ARCHIDROID_GCC_CFLAGS += -fgraphite -fgraphite-identity
+
+# The following flags (-floop) require that your GCC has been configured --with-isl
 # Additionally, applying any of them will most likely cause ICE in your compiler, so they're disabled
 # ARCHIDROID_GCC_CFLAGS += -floop-block -floop-interchange -floop-nest-optimize -floop-parallelize-all -floop-strip-mine
 
@@ -56,9 +64,6 @@ ARCHIDROID_GCC_CFLAGS += -fgraphite -fgraphite-identity
 
 # Flags passed to GCC preprocessor for C and C++
 ARCHIDROID_GCC_CPPFLAGS := $(ARCHIDROID_GCC_CFLAGS)
-
-# Flags passed to linker (ld) of all C and C++ targets compiled with GCC
-ARCHIDROID_GCC_LDFLAGS := -Wl,--sort-common
 
 #####################
 ### CLANG SECTION ###
@@ -109,7 +114,9 @@ ARCHIDROID_CLANG_UNKNOWN_FLAGS := \
 #####################
 
 # Most of the flags are increasing code size of the output binaries, especially O3 instead of Os for target THUMB
-# This may become problematic for small blocks, especially for boot or recovery blocks (ramdisks)
+# This may become problematic for small blocks, especially for boot or recovery blocks (ramdisks), used in older devices
+# For example, i9300 has only 8 MB block for recovery.img, and compiling TWRP for it with above optimizations will fail
+#
 # If you don't care about the size of recovery.img, e.g. you have no use of it, and you want to silence the
 # error "image too large" for recovery.img, use this definition
 #
@@ -117,5 +124,6 @@ ARCHIDROID_CLANG_UNKNOWN_FLAGS := \
 # boot + recovery combo (e.g. Sony Xperias), and we must build recovery for them, so we can't set TARGET_NO_RECOVERY globally
 # Therefore, this seems like a safe approach (will only ignore check on recovery.img, without doing anything else)
 # However, if you use compiled recovery.img for your device, please disable this flag (comment or set to false), and lower
-# optimization levels instead
+# optimization levels instead, as you need to make sure that recovery.img fits prior to trying to flash it
+# Most (if not all) of the builders have no use of recovery.img, therefore this option is enabled by default
 ARCHIDROID_IGNORE_RECOVERY_SIZE := true
